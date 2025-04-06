@@ -1,8 +1,8 @@
 #!/bin/bash
 
-LOG_FILE="/home/pi/install.log"
-CONFIG_FILE="/home/pi/tv_config.json"
-VIDEO_DIR="/home/pi/videos"
+LOG_FILE="$HOME/install.log"
+CONFIG_FILE="$HOME/tv_config.json"
+VIDEO_DIR="$HOME/videos"
 
 echo "Starting installation..." | tee -a $LOG_FILE
 
@@ -19,24 +19,6 @@ sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron j
 # Prompt user for Google Drive File ID
 read -p "Enter Google Drive File ID: " FILE_ID
 echo "Using File ID: $FILE_ID" | tee -a $LOG_FILE
-
-# Prompt for email credentials
-read -p "Enter email address for sending alerts (Gmail recommended): " EMAIL
-read -s -p "Enter email password (App Password if using Gmail): " EMAIL_PASSWORD
-echo ""
-echo "Email credentials received." | tee -a $LOG_FILE
-
-# Configure ssmtp
-echo "Configuring ssmtp..." | tee -a $LOG_FILE
-sudo bash -c "cat > /etc/ssmtp/ssmtp.conf" <<EOF
-root=$EMAIL
-mailhub=smtp.gmail.com:587
-AuthUser=$EMAIL
-AuthPass=$EMAIL_PASSWORD
-UseSTARTTLS=YES
-UseTLS=YES
-FromLineOverride=YES
-EOF
 
 # Define file paths
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
@@ -57,24 +39,24 @@ VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
 mv "$TEMP_VIDEO" "$VIDEO_FILE"
 
 # Save config file
-echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE\", \"email\": \"$EMAIL\"}" > "$CONFIG_FILE"
+echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE\"}" > "$CONFIG_FILE"
 
 echo "Video downloaded and saved as: $VIDEO_NAME" | tee -a $LOG_FILE
 
 # Create TV control script
 echo "Deploying tv_control.sh..." | tee -a $LOG_FILE
-cat > /home/pi/tv_control.sh <<'EOF'
+cat > "$HOME/tv_control.sh" <<'EOF'
 #!/bin/bash
 
-LOG_FILE="/home/pi/tv_control.log"
-CONFIG_FILE="/home/pi/tv_config.json"
-VIDEO_DIR="/home/pi/videos"
-EMAIL_TO=$(jq -r '.email' "$CONFIG_FILE")
+LOG_FILE="$HOME/tv_control.log"
+CONFIG_FILE="$HOME/tv_config.json"
+VIDEO_DIR="$HOME/videos"
+EMAIL_TO="your-email@gmail.com"
 
 mkdir -p "$VIDEO_DIR"  # Ensure video directory exists
 
 log_message() { echo "$(date) - $1" | tee -a $LOG_FILE; }
-send_email() { echo -e "Subject: TV Control Error\n\n$1" | ssmtp "$EMAIL_TO"; }
+send_email() { echo -e "Subject: TV Control Error\n\n$1" | ssmtp $EMAIL_TO; }
 
 check_tv_status() { 
     TV_STATUS=$(echo "pow 0" | cec-client -s -d 1 | grep "power status:")
@@ -109,7 +91,7 @@ download_video() {
         VIDEO_NAME=$(ls -t $VIDEO_DIR | grep -E "\.mp4$" | head -n 1)
         VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
         mv "$TEMP_VIDEO" "$VIDEO_FILE"
-        jq --arg video_file "$VIDEO_FILE" '.video_file = $video_file' "$CONFIG_FILE" > "/home/pi/tv_config_tmp.json" && mv "/home/pi/tv_config_tmp.json" "$CONFIG_FILE"
+        jq --arg video_file "$VIDEO_FILE" '.video_file = $video_file' "$CONFIG_FILE" > "$HOME/tv_config_tmp.json" && mv "$HOME/tv_config_tmp.json" "$CONFIG_FILE"
         log_message "Video updated."
     } || send_email "Failed to download video!"
 }
@@ -122,8 +104,8 @@ stop_video() {
   log_message "Video stopped."
 }
 setup_cron_jobs() { 
-    (crontab -l 2>/dev/null; echo "0 6 * * * /home/pi/tv_control.sh play") | crontab - 
-    (crontab -l 2>/dev/null; echo "0 23 * * * /home/pi/tv_control.sh stop") | crontab -
+    (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_control.sh play") | crontab - 
+    (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_control.sh stop") | crontab -
 }
 
 case "$1" in
@@ -135,16 +117,13 @@ esac
 EOF
 
 # Make script executable
-chmod +x /home/pi/tv_control.sh
+chmod +x "$HOME/tv_control.sh"
 
 # Setup cron jobs
 echo "Setting up cron jobs..." | tee -a $LOG_FILE
-/home/pi/tv_control.sh setup
+"$HOME/tv_control.sh" setup
 
 # Enable auto-start on boot
-echo "@reboot /home/pi/tv_control.sh play" | crontab -
+echo "@reboot $HOME/tv_control.sh play" | crontab -
 
 echo "Installation complete!" | tee -a $LOG_FILE
-echo "Rebooting in 10 seconds..." | tee -a $LOG_FILE
-sleep 10
-sudo reboot
