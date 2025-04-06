@@ -1,13 +1,14 @@
 #!/bin/bash
 
-LOG_FILE="$HOME/install.log"
-CONFIG_FILE="$HOME/tv_config.json"
-VIDEO_DIR="$HOME/videos"
+PROJECT_DIR="$HOME/tv_project"
+LOG_FILE="$PROJECT_DIR/install.log"
+CONFIG_FILE="$PROJECT_DIR/tv_config.json"
+VIDEO_DIR="$PROJECT_DIR/videos"
 
 echo "Starting installation..." | tee -a $LOG_FILE
 
 # Ensure required directories exist
-mkdir -p "$VIDEO_DIR"
+mkdir -p "$VIDEO_DIR" "$PROJECT_DIR"
 
 # Install required packages
 echo "Installing dependencies..." | tee -a $LOG_FILE
@@ -45,12 +46,12 @@ echo "Video downloaded and saved as: $VIDEO_NAME" | tee -a $LOG_FILE
 
 # Create TV control script
 echo "Deploying tv_control.sh..." | tee -a $LOG_FILE
-cat > "$HOME/tv_control.sh" <<'EOF'
+cat > "$PROJECT_DIR/tv_control.sh" <<'EOF'
 #!/bin/bash
 
-LOG_FILE="$HOME/tv_control.log"
-CONFIG_FILE="$HOME/tv_config.json"
-VIDEO_DIR="$HOME/videos"
+LOG_FILE="$HOME/tv_project/tv_control.log"
+CONFIG_FILE="$HOME/tv_project/tv_config.json"
+VIDEO_DIR="$HOME/tv_project/videos"
 EMAIL_TO="your-email@gmail.com"
 
 mkdir -p "$VIDEO_DIR"  # Ensure video directory exists
@@ -91,7 +92,7 @@ download_video() {
         VIDEO_NAME=$(ls -t $VIDEO_DIR | grep -E "\.mp4$" | head -n 1)
         VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
         mv "$TEMP_VIDEO" "$VIDEO_FILE"
-        jq --arg video_file "$VIDEO_FILE" '.video_file = $video_file' "$CONFIG_FILE" > "$HOME/tv_config_tmp.json" && mv "$HOME/tv_config_tmp.json" "$CONFIG_FILE"
+        jq --arg video_file "$VIDEO_FILE" '.video_file = $video_file' "$CONFIG_FILE" > "$HOME/tv_project/tv_config_tmp.json" && mv "$HOME/tv_project/tv_config_tmp.json" "$CONFIG_FILE"
         log_message "Video updated."
     } || send_email "Failed to download video!"
 }
@@ -104,8 +105,8 @@ stop_video() {
   log_message "Video stopped."
 }
 setup_cron_jobs() { 
-    (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_control.sh play") | crontab - 
-    (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_control.sh stop") | crontab -
+    (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_project/tv_control.sh play") | crontab - 
+    (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_project/tv_control.sh stop") | crontab -
 }
 
 case "$1" in
@@ -117,13 +118,16 @@ esac
 EOF
 
 # Make script executable
-chmod +x "$HOME/tv_control.sh"
+chmod +x "$PROJECT_DIR/tv_control.sh"
 
 # Setup cron jobs
 echo "Setting up cron jobs..." | tee -a $LOG_FILE
-"$HOME/tv_control.sh" setup
+"$PROJECT_DIR/tv_control.sh" setup
 
 # Enable auto-start on boot
-echo "@reboot $HOME/tv_control.sh play" | crontab -
+echo "@reboot $HOME/tv_project/tv_control.sh play" | crontab -
 
 echo "Installation complete!" | tee -a $LOG_FILE
+echo "Rebooting in 10 seconds..." | tee -a $LOG_FILE
+sleep 10
+sudo reboot
