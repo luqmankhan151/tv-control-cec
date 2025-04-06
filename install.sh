@@ -11,7 +11,7 @@ mkdir -p "$VIDEO_DIR"
 
 # Install required packages
 echo "Installing dependencies..." | tee -a $LOG_FILE
-sudo apt update && sudo apt install -y cec-utils omxplayer wget ssmtp mailutils cron jq || {
+sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron jq || {
     echo "Error installing dependencies!" | tee -a $LOG_FILE
     exit 1
 }
@@ -77,8 +77,14 @@ download_video() {
         log_message "Video updated."
     } || send_email "Failed to download video!"
 }
-play_video() { omxplayer --loop "$(jq -r '.video_file' $CONFIG_FILE)" > /dev/null 2>&1 &; }
-stop_video() { pkill omxplayer; log_message "Video stopped."; }
+play_video() {
+  cvlc --loop --fullscreen --play-and-exit "$(jq -r '.video_file' $CONFIG_FILE)" > /dev/null 2>&1 &
+}
+stop_video() {
+  pkill vlc
+  pkill cvlc
+  log_message "Video stopped."
+}
 setup_cron_jobs() { 
     (crontab -l 2>/dev/null; echo "0 6 * * * /home/pi/tv_control.sh play") | crontab - 
     (crontab -l 2>/dev/null; echo "0 23 * * * /home/pi/tv_control.sh stop") | crontab -
