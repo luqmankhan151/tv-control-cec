@@ -20,6 +20,24 @@ sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron j
 read -p "Enter Google Drive File ID: " FILE_ID
 echo "Using File ID: $FILE_ID" | tee -a $LOG_FILE
 
+# Prompt for email credentials
+read -p "Enter email address for sending alerts (Gmail recommended): " EMAIL
+read -s -p "Enter email password (App Password if using Gmail): " EMAIL_PASSWORD
+echo ""
+echo "Email credentials received." | tee -a $LOG_FILE
+
+# Configure ssmtp
+echo "Configuring ssmtp..." | tee -a $LOG_FILE
+sudo bash -c "cat > /etc/ssmtp/ssmtp.conf" <<EOF
+root=$EMAIL
+mailhub=smtp.gmail.com:587
+AuthUser=$EMAIL
+AuthPass=$EMAIL_PASSWORD
+UseSTARTTLS=YES
+UseTLS=YES
+FromLineOverride=YES
+EOF
+
 # Define file paths
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
 GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
@@ -39,7 +57,7 @@ VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
 mv "$TEMP_VIDEO" "$VIDEO_FILE"
 
 # Save config file
-echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE\"}" > "$CONFIG_FILE"
+echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE\", \"email\": \"$EMAIL\"}" > "$CONFIG_FILE"
 
 echo "Video downloaded and saved as: $VIDEO_NAME" | tee -a $LOG_FILE
 
@@ -51,12 +69,12 @@ cat > /home/pi/tv_control.sh <<'EOF'
 LOG_FILE="/home/pi/tv_control.log"
 CONFIG_FILE="/home/pi/tv_config.json"
 VIDEO_DIR="/home/pi/videos"
-EMAIL_TO="your-email@gmail.com"
+EMAIL_TO=$(jq -r '.email' "$CONFIG_FILE")
 
 mkdir -p "$VIDEO_DIR"  # Ensure video directory exists
 
 log_message() { echo "$(date) - $1" | tee -a $LOG_FILE; }
-send_email() { echo -e "Subject: TV Control Error\n\n$1" | ssmtp $EMAIL_TO; }
+send_email() { echo -e "Subject: TV Control Error\n\n$1" | ssmtp "$EMAIL_TO"; }
 
 check_tv_status() { 
     TV_STATUS=$(echo "pow 0" | cec-client -s -d 1 | grep "power status:")
