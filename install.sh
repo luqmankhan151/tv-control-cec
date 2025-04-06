@@ -63,8 +63,26 @@ check_tv_status() {
     [[ "$TV_STATUS" == *"on"* ]] && log_message "TV is ON." || { log_message "TV failed to turn ON!"; send_email "TV failed to turn ON!"; }
 }
 
-turn_on_tv() { echo "on 0" | cec-client -s -d 1; sleep 5; check_tv_status; }
-turn_off_tv() { echo "standby 0" | cec-client -s -d 1; log_message "TV turned off."; }
+HDMI_CONNECTED=$(cec-client -l | grep -q "device: 1" && echo "yes" || echo "no")
+
+turn_on_tv() {
+    if [ "$HDMI_CONNECTED" = "yes" ]; then
+        echo "on 0" | cec-client -s -d 1
+        sleep 5
+        check_tv_status
+    else
+        log_message "No HDMI device detected. Skipping TV power on."
+    fi
+}
+
+turn_off_tv() {
+    if [ "$HDMI_CONNECTED" = "yes" ]; then
+        echo "standby 0" | cec-client -s -d 1
+        log_message "TV turned off."
+    else
+        log_message "No HDMI device detected. Skipping TV power off."
+    fi
+}
 download_video() { 
     FILE_ID=$(jq -r '.file_id' $CONFIG_FILE)
     GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
