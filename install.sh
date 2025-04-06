@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Define directory paths and file locations
 PROJECT_DIR="$HOME/tv_project"
 LOG_FILE="$PROJECT_DIR/install.log"
 CONFIG_FILE="$PROJECT_DIR/tv_config.json"
@@ -21,6 +22,21 @@ sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron j
 read -p "Enter Google Drive File ID: " FILE_ID
 echo "Using File ID: $FILE_ID" | tee -a $LOG_FILE
 
+# Prompt user for email account setup
+echo "Please provide the email account credentials for sending error emails."
+read -p "Enter your email address: " SENDER_EMAIL
+read -sp "Enter your email password (won't be shown): " EMAIL_PASSWORD
+echo
+read -p "Enter the recipient email address for error notifications: " RECIPIENT_EMAIL
+
+# Generate a unique device code
+DEVICE_CODE=$(uuidgen)
+echo "Device code generated: $DEVICE_CODE" | tee -a $LOG_FILE
+echo "Please store this code for future reference: $DEVICE_CODE"
+
+# Save email configuration and device code to config file
+echo "{\"file_id\": \"$FILE_ID\", \"sender_email\": \"$SENDER_EMAIL\", \"email_password\": \"$EMAIL_PASSWORD\", \"recipient_email\": \"$RECIPIENT_EMAIL\", \"device_code\": \"$DEVICE_CODE\"}" > "$CONFIG_FILE"
+
 # Define file paths
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
 GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
@@ -39,8 +55,8 @@ VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
 # Move temp video to final location
 mv "$TEMP_VIDEO" "$VIDEO_FILE"
 
-# Save config file
-echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE\"}" > "$CONFIG_FILE"
+# Save video configuration
+echo "{\"file_id\": \"$FILE_ID\", \"video_file\": \"$VIDEO_FILE}\"" > "$CONFIG_FILE"
 
 echo "Video downloaded and saved as: $VIDEO_NAME" | tee -a $LOG_FILE
 
@@ -52,12 +68,18 @@ cat > "$PROJECT_DIR/tv_control.sh" <<'EOF'
 LOG_FILE="$HOME/tv_project/tv_control.log"
 CONFIG_FILE="$HOME/tv_project/tv_config.json"
 VIDEO_DIR="$HOME/tv_project/videos"
-EMAIL_TO="your-email@gmail.com"
-
-mkdir -p "$VIDEO_DIR"  # Ensure video directory exists
 
 log_message() { echo "$(date) - $1" | tee -a $LOG_FILE; }
-send_email() { echo -e "Subject: TV Control Error\n\n$1" | ssmtp $EMAIL_TO; }
+
+# Fetch email and device info from config file
+SENDER_EMAIL=$(jq -r '.sender_email' $CONFIG_FILE)
+EMAIL_PASSWORD=$(jq -r '.email_password' $CONFIG_FILE)
+RECIPIENT_EMAIL=$(jq -r '.recipient_email' $CONFIG_FILE)
+DEVICE_CODE=$(jq -r '.device_code' $CONFIG_FILE)
+
+send_email() {
+    echo -e "Subject: TV Control Error from Device $DEVICE_CODE\n\n$1" | ssmtp $RECIPIENT_EMAIL
+}
 
 check_tv_status() { 
     TV_STATUS=$(echo "pow 0" | cec-client -s -d 1 | grep "power status:")
@@ -84,6 +106,7 @@ turn_off_tv() {
         log_message "No HDMI device detected. Skipping TV power off."
     fi
 }
+
 download_video() { 
     FILE_ID=$(jq -r '.file_id' $CONFIG_FILE)
     GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
@@ -96,14 +119,17 @@ download_video() {
         log_message "Video updated."
     } || send_email "Failed to download video!"
 }
+
 play_video() {
   cvlc --loop --fullscreen --play-and-exit "$(jq -r '.video_file' $CONFIG_FILE)" > /dev/null 2>&1 &
 }
+
 stop_video() {
   pkill vlc
   pkill cvlc
   log_message "Video stopped."
 }
+
 setup_cron_jobs() { 
     (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_project/tv_control.sh play") | crontab - 
     (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_project/tv_control.sh stop") | crontab -
@@ -115,6 +141,22 @@ case "$1" in
     setup) setup_cron_jobs; log_message "Cron jobs set up." ;;
     *) echo "Usage: $0 {play|stop|setup}"; ;;
 esac
+EOF
+
+# Make the script executable
+chmod +x "$PROJECT_DIR/tv_control.sh"
+
+# Setup cron jobs
+echo "Setting up cron jobs..." | tee -a $LOG_FILE
+"$PROJECT_DIR/tv_control.sh" setup
+
+# Enable auto-start on boot
+echo "@reboot $HOME/tv_project/tv_control.sh play" | crontab -
+
+echo "Installation complete!" | tee -a $LOG_FILE
+echo "Rebooting in 10 seconds..." | tee -a $LOG_FILE
+sleep 10
+sudo reboot
 EOF
 
 # Make script executable
