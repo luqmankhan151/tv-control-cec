@@ -131,9 +131,24 @@ stop_video() {
 }
 
 setup_cron_jobs() { 
-    (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_project/tv_control.sh play") | crontab - 
-    (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_project/tv_control.sh stop") | crontab -
+    # Check if cron job for "play" exists
+    if ! crontab -l | grep -q "$HOME/tv_project/tv_control.sh play"; then
+        (crontab -l 2>/dev/null; echo "0 6 * * * $HOME/tv_project/tv_control.sh play") | crontab - 
+        log_message "Cron job for play added."
+    fi
+
+    # Check if cron job for "stop" exists
+    if ! crontab -l | grep -q "$HOME/tv_project/tv_control.sh stop"; then
+        (crontab -l 2>/dev/null; echo "0 23 * * * $HOME/tv_project/tv_control.sh stop") | crontab -
+        log_message "Cron job for stop added."
+    fi
 }
+
+# Add cron job for reboot
+if ! crontab -l | grep -q "$HOME/tv_project/tv_control.sh play"; then
+    echo "@reboot $HOME/tv_project/tv_control.sh play" | crontab -
+    log_message "Cron job for reboot added."
+fi
 
 case "$1" in
     play) download_video; turn_on_tv; play_video ;;
