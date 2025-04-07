@@ -170,9 +170,19 @@ download_video() {
 }
 
 play_video() {
-  DISPLAY:0 cvlc --loop --fullscreen --play-and-exit --aout=alsa --audio-device=default "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
-  log "Video started."
+  # Find the active display (either :0 or HDMI output)
+  ACTIVE_DISPLAY=$(xrandr | grep " connected" | grep -Eo ':[0-9]+' | head -n 1)
+  
+  # If no active display is found, fall back to :0
+  if [ -z "$ACTIVE_DISPLAY" ]; then
+    ACTIVE_DISPLAY=":0"
+  fi
+  
+  # Start VLC with the dynamically detected DISPLAY
+  DISPLAY=$ACTIVE_DISPLAY cvlc --loop --fullscreen --play-and-exit --aout=alsa --audio-device=default "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
+  log "Video started on display $ACTIVE_DISPLAY."
 }
+
 
 stop_video() {
   pkill vlc
