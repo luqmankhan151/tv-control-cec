@@ -82,17 +82,21 @@ wget -O "$TEMP_VIDEO" "$GDRIVE_URL" || {
     exit 1
 }
 
-# Rename and move video
-VIDEO_NAME="video_$(date +%s).mp4"
-VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
-mv "$TEMP_VIDEO" "$VIDEO_FILE"
+# Remove the old video if it exists
+if [ -f "$VIDEO_DIR/latest_video.mp4" ]; then
+  rm "$VIDEO_DIR/latest_video.mp4"
+  echo "Old video removed." | tee -a "$INSTALL_LOG_FILE"
+fi
+
+# Rename and move the new video to the desired location with a fixed name
+mv "$TEMP_VIDEO" "$VIDEO_DIR/latest_video.mp4"
 
 # Write JSON config safely
 TMP_JSON=$(mktemp)
 cat > "$TMP_JSON" <<EOF
 {
   "file_id": "$FILE_ID",
-  "video_file": "$VIDEO_FILE",
+  "video_file": "$VIDEO_DIR/latest_video.mp4",
   "device_id": "$DEVICE_ID",
   "device_name": "$DEVICE_NAME",
   "email_to": "$EMAIL_TO",
@@ -159,10 +163,8 @@ download_video() {
   GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
   TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
   wget -O "$TEMP_VIDEO" "$GDRIVE_URL" && {
-    VIDEO_NAME="video_$(date +%s).mp4"
-    VIDEO_FILE="$VIDEO_DIR/$VIDEO_NAME"
-    mv "$TEMP_VIDEO" "$VIDEO_FILE"
-    jq --arg video_file "$VIDEO_FILE" '.video_file = $video_file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    mv "$TEMP_VIDEO" "$VIDEO_DIR/latest_video.mp4"
+    jq --arg video_file "$VIDEO_DIR/latest_video.mp4" '.video_file = $video_file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
     log "Video updated."
   } || send_email "Failed to download video!"
 }
