@@ -183,7 +183,6 @@ play_video() {
   log "Video started on display $ACTIVE_DISPLAY."
 }
 
-
 stop_video() {
   pkill vlc
   pkill cvlc
