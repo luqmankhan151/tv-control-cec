@@ -179,7 +179,7 @@ play_video() {
   fi
   
   # Start VLC with the dynamically detected DISPLAY
-  DISPLAY=$ACTIVE_DISPLAY cvlc --loop --fullscreen --play-and-exit --aout=alsa --audio-device=default "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
+  DISPLAY=$ACTIVE_DISPLAY cvlc --loop --fullscreen --play-and-exit "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
   log "Video started on display $ACTIVE_DISPLAY."
 }
 
