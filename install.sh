@@ -113,7 +113,7 @@ if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
 fi
 
 echo "Saving control script..." | tee -a "$INSTALL_LOG_FILE"
-cat > "$CONTROL_SCRIPT" <<EOF
+cat > "$CONTROL_SCRIPT" <<'EOF'
 #!/bin/bash
 
 PROJECT_DIR="$(dirname "$(readlink -f "$0")")"
