@@ -120,6 +120,7 @@ PROJECT_DIR="$(dirname "$(readlink -f "$0")")"
 CONFIG_FILE="$PROJECT_DIR/tv_config.json"
 VIDEO_DIR="$PROJECT_DIR/videos"
 LOG_FILE="$PROJECT_DIR/tv_control.log"
+CONTROL_SCRIPT="$PROJECT_DIR/tv_control.sh"
 
 EMAIL_TO=$(jq -r '.email_to' "$CONFIG_FILE")
 EMAIL_FROM=$(jq -r '.email_from' "$CONFIG_FILE")
@@ -195,9 +196,9 @@ setup_cron_jobs() {
   # Remove existing play/stop lines
   crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT" > mycron.tmp
 
-  # Append new cron jobs
-  echo "0 6 * * * /bin/bash $CONTROL_SCRIPT play >> $LOG_FILE 2>&1" >> mycron.tmp
-  echo "0 23 * * * /bin/bash $CONTROL_SCRIPT stop >> $LOG_FILE 2>&1" >> mycron.tmp
+  # Append new cron jobs with quoted paths to ensure correct handling of spaces
+  echo "0 6 * * * /bin/bash \"$CONTROL_SCRIPT\" play >> \"$LOG_FILE\" 2>&1" >> mycron.tmp
+  echo "0 23 * * * /bin/bash \"$CONTROL_SCRIPT\" stop >> \"$LOG_FILE\" 2>&1" >> mycron.tmp
 
   crontab mycron.tmp
   rm mycron.tmp
