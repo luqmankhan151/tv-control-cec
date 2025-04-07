@@ -5,18 +5,20 @@ USER_HOME=$(eval echo ~"$USER")
 PROJECT_DIR="$USER_HOME/tv_project"
 VIDEO_DIR="$PROJECT_DIR/videos"
 CONFIG_FILE="$PROJECT_DIR/tv_config.json"
-LOG_FILE="$PROJECT_DIR/install.log"
+INSTALL_LOG_FILE="$PROJECT_DIR/install.log"
 CONTROL_SCRIPT="$PROJECT_DIR/tv_control.sh"
 
+# Ensure required directories and log files exist
 mkdir -p "$VIDEO_DIR"
-touch "$LOG_FILE"
+touch "$INSTALL_LOG_FILE"
 
-echo "Starting installation..." | tee -a "$LOG_FILE"
+# Installation log output
+echo "Starting installation..." | tee -a "$INSTALL_LOG_FILE"
 
 # Install required dependencies
-echo "Installing necessary dependencies..." | tee -a "$LOG_FILE"
+echo "Installing necessary dependencies..." | tee -a "$INSTALL_LOG_FILE"
 sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron jq || {
-    echo "Error installing dependencies!" | tee -a "$LOG_FILE"
+    echo "Error installing dependencies!" | tee -a "$INSTALL_LOG_FILE"
     exit 1
 }
 
@@ -32,7 +34,7 @@ while true; do
   echo ""
 
   # Temporarily configure ssmtp to test email
-  echo "Configuring temporary ssmtp to test email..." | tee -a "$LOG_FILE"
+  echo "Configuring temporary ssmtp to test email..." | tee -a "$INSTALL_LOG_FILE"
   SSMTP_CONF="/etc/ssmtp/ssmtp.conf"
   sudo tee "$SSMTP_CONF" > /dev/null <<EOF
 root=$EMAIL_FROM
@@ -53,25 +55,25 @@ EOF
   read -p "Did you receive the email? (yes/no): " EMAIL_CONFIRM
 
   if [[ "$EMAIL_CONFIRM" == "yes" ]]; then
-    echo "Email verified. Continuing setup..." | tee -a "$LOG_FILE"
+    echo "Email verified. Continuing setup..." | tee -a "$INSTALL_LOG_FILE"
     break
   else
-    echo "Please check your email details and try again." | tee -a "$LOG_FILE"
+    echo "Please check your email details and try again." | tee -a "$INSTALL_LOG_FILE"
   fi
 done
 
 # Generate real device ID
 DEVICE_ID=$(uuidgen)
-echo "Generated Device ID: $DEVICE_ID" | tee -a "$LOG_FILE"
+echo "Generated Device ID: $DEVICE_ID" | tee -a "$INSTALL_LOG_FILE"
 echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 
 # Download video
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
 GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
 
-echo "Downloading video..." | tee -a "$LOG_FILE"
+echo "Downloading video..." | tee -a "$INSTALL_LOG_FILE"
 wget -O "$TEMP_VIDEO" "$GDRIVE_URL" || {
-    echo "Error downloading video!" | tee -a "$LOG_FILE"
+    echo "Error downloading video!" | tee -a "$INSTALL_LOG_FILE"
     exit 1
 }
 
@@ -101,7 +103,7 @@ if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
   exit 1
 fi
 
-echo "Saving control script..." | tee -a "$LOG_FILE"
+echo "Saving control script..." | tee -a "$INSTALL_LOG_FILE"
 cat > "$CONTROL_SCRIPT" <<'EOF'
 #!/bin/bash
 
@@ -189,4 +191,4 @@ chmod +x "$CONTROL_SCRIPT"
 # Setup cron jobs (ensuring no duplicates)
 "$CONTROL_SCRIPT" setup
 
-echo "Installation complete! Device ID: $DEVICE_ID and Device Name: $DEVICE_NAME" | tee -a "$LOG_FILE"
+echo "Installation complete! Device ID: $DEVICE_ID and Device Name: $DEVICE_NAME" | tee -a "$INSTALL_LOG_FILE"
