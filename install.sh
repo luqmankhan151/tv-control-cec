@@ -176,11 +176,14 @@ stop_video() {
 }
 
 setup_cron_jobs() {
-  # Ensure correct PATH for cron jobs
+  # Ensure correct PATH for cron jobs and full path to script
   echo "Setting up cron jobs..." | tee -a "$LOG_FILE"
+  
+  # Use full path for CONTROL_SCRIPT and ensure play/stop commands are passed as arguments
   (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT play"; echo "0 6 * * * /bin/bash $CONTROL_SCRIPT play >> $LOG_FILE 2>&1") | crontab -
   (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT stop"; echo "0 23 * * * /bin/bash $CONTROL_SCRIPT stop >> $LOG_FILE 2>&1") | crontab -
 }
+
 
 case "$1" in
   play) download_video; turn_on_tv; play_video ;;
