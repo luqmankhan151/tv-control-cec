@@ -165,7 +165,7 @@ download_video() {
 }
 
 play_video() {
-  DISPLAY:0 cvlc --loop --fullscreen --play-and-exit "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
+  DISPLAY:0 cvlc --loop --fullscreen --play-and-exit --aout=alsa --audio-device=default "$(jq -r '.video_file' "$CONFIG_FILE")" > /dev/null 2>&1 &
   log "Video started."
 }
 
