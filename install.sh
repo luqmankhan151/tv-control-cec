@@ -190,12 +190,17 @@ stop_video() {
 }
 
 setup_cron_jobs() {
-  # Ensure correct PATH for cron jobs and full path to script
   echo "Setting up cron jobs..." | tee -a "$LOG_FILE"
-  
-  # Update the cron job with full path to the script and argument (play/stop)
-  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT play"; echo "0 6 * * * /bin/bash \"$CONTROL_SCRIPT\" play >> \"$LOG_FILE\" 2>&1") | crontab -
-  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT stop"; echo "0 23 * * * /bin/bash \"$CONTROL_SCRIPT\" stop >> \"$LOG_FILE\" 2>&1") | crontab -
+
+  # Remove existing play/stop lines
+  crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT" > mycron.tmp
+
+  # Append new cron jobs
+  echo "0 6 * * * /bin/bash $CONTROL_SCRIPT play >> $LOG_FILE 2>&1" >> mycron.tmp
+  echo "0 23 * * * /bin/bash $CONTROL_SCRIPT stop >> $LOG_FILE 2>&1" >> mycron.tmp
+
+  crontab mycron.tmp
+  rm mycron.tmp
 }
 
 
