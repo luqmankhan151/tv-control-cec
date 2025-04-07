@@ -24,6 +24,9 @@ sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron j
     exit 1
 }
 
+# Allow access to the X server for the current user
+xhost +si:localuser:$(whoami)
+
 # Prompt for Google Drive File ID
 read -p "Enter Google Drive File ID: " FILE_ID
 
