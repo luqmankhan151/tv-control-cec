@@ -7,10 +7,12 @@ VIDEO_DIR="$PROJECT_DIR/videos"
 CONFIG_FILE="$PROJECT_DIR/tv_config.json"
 INSTALL_LOG_FILE="$PROJECT_DIR/install.log"
 CONTROL_SCRIPT="$PROJECT_DIR/tv_control.sh"
+LOG_FILE="$PROJECT_DIR/tv_control.log"
 
 # Ensure required directories and log files exist
 mkdir -p "$VIDEO_DIR"
 touch "$INSTALL_LOG_FILE"
+touch "$LOG_FILE"
 
 # Installation log output
 echo "Starting installation..." | tee -a "$INSTALL_LOG_FILE"
@@ -174,8 +176,10 @@ stop_video() {
 }
 
 setup_cron_jobs() {
-  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT play"; echo "0 6 * * * $CONTROL_SCRIPT play") | crontab -
-  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT stop"; echo "0 23 * * * $CONTROL_SCRIPT stop") | crontab -
+  # Ensure correct PATH for cron jobs
+  echo "Setting up cron jobs..." | tee -a "$LOG_FILE"
+  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT play"; echo "0 6 * * * /bin/bash $CONTROL_SCRIPT play >> $LOG_FILE 2>&1") | crontab -
+  (crontab -l 2>/dev/null | grep -v "$CONTROL_SCRIPT stop"; echo "0 23 * * * /bin/bash $CONTROL_SCRIPT stop >> $LOG_FILE 2>&1") | crontab -
 }
 
 case "$1" in
