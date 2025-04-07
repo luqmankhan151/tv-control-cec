@@ -138,10 +138,14 @@ check_tv_status() {
   }
 }
 
-HDMI_CONNECTED=$(cec-client -l | grep -P "device:\s+1" && echo "yes" || echo "no")
+HDMI_OUTPUT=$(cec-client -l)
+log "CEC client output: $HDMI_OUTPUT"
+HDMI_CONNECTED=$(echo "$HDMI_OUTPUT" | grep -P "device:\s+1" && echo "yes" || echo "no")
 
 turn_on_tv() {
-  HDMI_CONNECTED=$(cec-client -l | grep -P "device:\s+1" && echo "yes" || echo "no")
+  HDMI_OUTPUT=$(cec-client -l)
+  log "CEC client output: $HDMI_OUTPUT"
+  HDMI_CONNECTED=$(echo "$HDMI_OUTPUT" | grep -P "device:\s+1" && echo "yes" || echo "no")
   if [ "$HDMI_CONNECTED" = "yes" ]; then
     echo 'on 0' | cec-client -s -d 1
     sleep 5
@@ -152,7 +156,9 @@ turn_on_tv() {
 }
 
 turn_off_tv() {
-  HDMI_CONNECTED=$(cec-client -l | grep -P "device:\s+1" && echo "yes" || echo "no")
+  HDMI_OUTPUT=$(cec-client -l)
+  log "CEC client output: $HDMI_OUTPUT"
+  HDMI_CONNECTED=$(echo "$HDMI_OUTPUT" | grep -P "device:\s+1" && echo "yes" || echo "no")
   if [ "$HDMI_CONNECTED" = "yes" ]; then
     echo 'standby 0' | cec-client -s -d 1
     log "TV turned off."
