@@ -220,8 +220,8 @@ setup_cron_jobs() {
 
 
 case "$1" in
-  play) download_video; turn_on_tv; play_video ;;
-  stop) stop_video; turn_off_tv ;;
+  play) download_video ; play_video ;;
+  stop) stop_video ;;
   setup) setup_cron_jobs; log "Cron jobs set up." ;;
   *) echo "Usage: $0 {play|stop|setup}" ;;
 esac
