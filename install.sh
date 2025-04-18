@@ -74,7 +74,7 @@ echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 
 # Download video
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
-GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
+GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download&confirm=t"
 
 echo "Downloading video..." | tee -a "$INSTALL_LOG_FILE"
 wget -O "$TEMP_VIDEO" "$GDRIVE_URL" || {
@@ -183,7 +183,7 @@ turn_off_tv() {
 
 download_video() {
   FILE_ID=$(jq -r '.file_id' "$CONFIG_FILE")
-  GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download"
+  GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download&confirm=t"
   TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
   wget -O "$TEMP_VIDEO" "$GDRIVE_URL" && {
     mv "$TEMP_VIDEO" "$VIDEO_DIR/latest_video.mp4"
