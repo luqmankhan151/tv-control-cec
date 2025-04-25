@@ -1,30 +1,5 @@
 #!/bin/bash
 
-download_from_gdrive() {
-    FILE_ID="$1"
-    DEST_FILE="$2"
-    COOKIE_FILE=$(mktemp)
-
-    CONFIRM_PAGE=$(wget --quiet --save-cookies "$COOKIE_FILE" --keep-session-cookies --no-check-certificate \
-        "https://drive.google.com/uc?export=download&id=${FILE_ID}" -O -)
-
-    CONFIRM_TOKEN=$(echo "$CONFIRM_PAGE" | grep -oP 'confirm=\K[^&]+' | head -n 1)
-
-    if [[ -z "$CONFIRM_TOKEN" ]]; then
-        # Maybe no confirmation is needed (small file)
-        wget --load-cookies "$COOKIE_FILE" \
-            "https://drive.google.com/uc?export=download&id=${FILE_ID}" \
-            -O "$DEST_FILE"
-    else
-        # Confirmation token required
-        wget --load-cookies "$COOKIE_FILE" \
-            "https://drive.google.com/uc?export=download&confirm=${CONFIRM_TOKEN}&id=${FILE_ID}" \
-            -O "$DEST_FILE"
-    fi
-
-    rm -f "$COOKIE_FILE"
-}
-
 # Base project directory
 USER_HOME=$(eval echo ~"$USER")
 PROJECT_DIR="$USER_HOME/tv_project"
@@ -51,9 +26,6 @@ sudo apt update && sudo apt install -y cec-utils vlc wget ssmtp mailutils cron j
 
 # Allow access to the X server for the current user
 xhost +si:localuser:$(whoami)
-
-# Prompt for Google Drive File ID
-read -p "Enter Google Drive File ID: " FILE_ID
 
 # Ask for device name and email details
 while true; do
@@ -97,12 +69,23 @@ DEVICE_ID=$(uuidgen)
 echo "Generated Device ID: $DEVICE_ID" | tee -a "$INSTALL_LOG_FILE"
 echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 
+# Get Dropbox URL
+echo "Enter the Dropbox shared link:"
+read DROPBOX_SHARED_LINK
+DROPBOX_DIRECT_LINK="${DROPBOX_SHARED_LINK/\?dl=0/?dl=1}"
+DROPBOX_DIRECT_LINK="${DROPBOX_DIRECT_LINK/\?dl=1/?dl=1}"
+
 # Download video
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
-download_from_gdrive "$FILE_ID" "$TEMP_VIDEO" || {
-    echo "Error downloading video!" | tee -a "$INSTALL_LOG_FILE"
-    exit 1
-}
+echo "Downloading video..."
+wget -O /home/luqman/tv_project/videos/temp_video.mp4 "$DROPBOX_DIRECT_LINK"
+
+if [[ $? -eq 0 ]]; then
+  echo "Download complete."
+else
+  echo "Download failed."
+fi
+
 # Remove the old video if it exists
 if [ -f "$VIDEO_DIR/latest_video.mp4" ]; then
   rm "$VIDEO_DIR/latest_video.mp4"
@@ -116,7 +99,7 @@ mv "$TEMP_VIDEO" "$VIDEO_DIR/latest_video.mp4"
 TMP_JSON=$(mktemp)
 cat > "$TMP_JSON" <<EOF
 {
-  "file_id": "$FILE_ID",
+  "DROPBOX_DIRECT_LINK": "$DROPBOX_DIRECT_LINK",
   "video_file": "$VIDEO_DIR/latest_video.mp4",
   "device_id": "$DEVICE_ID",
   "device_name": "$DEVICE_NAME",
@@ -203,10 +186,9 @@ turn_off_tv() {
 }
 
 download_video() {
-  FILE_ID=$(jq -r '.file_id' "$CONFIG_FILE")
-  GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download&confirm=t"
+  DROPBOX_DIRECT_LINK=$(jq -r '.DROPBOX_DIRECT_LINK' "$CONFIG_FILE")
   TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
-  wget -O "$TEMP_VIDEO" "$GDRIVE_URL" && {
+  wget -O /home/luqman/tv_project/videos/temp_video.mp4 "$DROPBOX_DIRECT_LINK" && {
     mv "$TEMP_VIDEO" "$VIDEO_DIR/latest_video.mp4"
     jq --arg video_file "$VIDEO_DIR/latest_video.mp4" '.video_file = $video_file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
     log "Video updated."
