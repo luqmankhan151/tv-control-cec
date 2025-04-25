@@ -72,14 +72,17 @@ echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 # Get Dropbox URL
 echo "Enter the Dropbox shared link:"
 read DROPBOX_SHARED_LINK
-DROPBOX_DIRECT_LINK="${DROPBOX_SHARED_LINK/\?dl=0/?dl=1}"
-DROPBOX_DIRECT_LINK="${DROPBOX_DIRECT_LINK/\?dl=1/?dl=1}"
+
+# Convert to direct download link
+DROPBOX_DIRECT_LINK=$(echo "$DROPBOX_SHARED_LINK" | sed 's/www.dropbox.com/dl.dropboxusercontent.com/' | sed 's/[?&]dl=0//')
 
 # Download video
+VIDEO_DIR="/home/luqman/tv_project/videos"
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
 echo "Downloading video..."
-wget -O /home/luqman/tv_project/videos/temp_video.mp4 "$DROPBOX_DIRECT_LINK"
+wget -O "$TEMP_VIDEO" "$DROPBOX_DIRECT_LINK"
 
+# Check if download was successful
 if [[ $? -eq 0 ]]; then
   echo "Download complete."
 else
