@@ -74,13 +74,18 @@ echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 
 # Download video
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
-GDRIVE_URL="https://drive.google.com/uc?id=$FILE_ID&export=download&confirm=t"
-
 echo "Downloading video..." | tee -a "$INSTALL_LOG_FILE"
-wget -O "$TEMP_VIDEO" "$GDRIVE_URL" || {
+COOKIE_FILE=$(mktemp)
+CONFIRM_PAGE=$(wget --quiet --save-cookies "$COOKIE_FILE" --keep-session-cookies --no-check-certificate \
+"https://drive.google.com/uc?export=download&id=$FILE_ID" -O -)
+
+CONFIRM_CODE=$(echo "$CONFIRM_PAGE" | sed -n 's/.*confirm=\(.*\)&amp;.*/\1/p' | head -n 1)
+
+wget --load-cookies "$COOKIE_FILE" "https://drive.google.com/uc?export=download&confirm=$CONFIRM_CODE&id=$FILE_ID" -O "$TEMP_VIDEO" || {
     echo "Error downloading video!" | tee -a "$INSTALL_LOG_FILE"
     exit 1
 }
+rm -f "$COOKIE_FILE"
 
 # Remove the old video if it exists
 if [ -f "$VIDEO_DIR/latest_video.mp4" ]; then
