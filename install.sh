@@ -1,5 +1,30 @@
 #!/bin/bash
 
+download_from_gdrive() {
+    FILE_ID="$1"
+    DEST_FILE="$2"
+    COOKIE_FILE=$(mktemp)
+
+    CONFIRM_PAGE=$(wget --quiet --save-cookies "$COOKIE_FILE" --keep-session-cookies --no-check-certificate \
+        "https://drive.google.com/uc?export=download&id=${FILE_ID}" -O -)
+
+    CONFIRM_TOKEN=$(echo "$CONFIRM_PAGE" | grep -oP 'confirm=\K[^&]+' | head -n 1)
+
+    if [[ -z "$CONFIRM_TOKEN" ]]; then
+        # Maybe no confirmation is needed (small file)
+        wget --load-cookies "$COOKIE_FILE" \
+            "https://drive.google.com/uc?export=download&id=${FILE_ID}" \
+            -O "$DEST_FILE"
+    else
+        # Confirmation token required
+        wget --load-cookies "$COOKIE_FILE" \
+            "https://drive.google.com/uc?export=download&confirm=${CONFIRM_TOKEN}&id=${FILE_ID}" \
+            -O "$DEST_FILE"
+    fi
+
+    rm -f "$COOKIE_FILE"
+}
+
 # Base project directory
 USER_HOME=$(eval echo ~"$USER")
 PROJECT_DIR="$USER_HOME/tv_project"
@@ -74,19 +99,10 @@ echo "⚠️  Please save this Device ID securely: $DEVICE_ID"
 
 # Download video
 TEMP_VIDEO="$VIDEO_DIR/temp_video.mp4"
-echo "Downloading video..." | tee -a "$INSTALL_LOG_FILE"
-COOKIE_FILE=$(mktemp)
-CONFIRM_PAGE=$(wget --quiet --save-cookies "$COOKIE_FILE" --keep-session-cookies --no-check-certificate \
-"https://drive.google.com/uc?export=download&id=$FILE_ID" -O -)
-
-CONFIRM_CODE=$(echo "$CONFIRM_PAGE" | sed -n 's/.*confirm=\(.*\)&amp;.*/\1/p' | head -n 1)
-
-wget --load-cookies "$COOKIE_FILE" "https://drive.google.com/uc?export=download&confirm=$CONFIRM_CODE&id=$FILE_ID" -O "$TEMP_VIDEO" || {
+download_from_gdrive "$FILE_ID" "$TEMP_VIDEO" || {
     echo "Error downloading video!" | tee -a "$INSTALL_LOG_FILE"
     exit 1
 }
-rm -f "$COOKIE_FILE"
-
 # Remove the old video if it exists
 if [ -f "$VIDEO_DIR/latest_video.mp4" ]; then
   rm "$VIDEO_DIR/latest_video.mp4"
